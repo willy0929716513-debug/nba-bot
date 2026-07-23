@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>單字庫 - 背單字</title>
+<link rel="stylesheet" href="css/style.css">
+<script>
+  (function () {
+    var saved = localStorage.getItem("vocab-theme");
+    if (saved) document.documentElement.setAttribute("data-theme", saved);
+  })();
+</script>
+</head>
+<body>
+<div id="topbar-root"></div>
+<main class="container">
+
+<section class="card">
+  <h2>新增單字</h2>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="paste">✍️ 貼上 / 手動輸入</button>
+    <button class="tab-btn" data-tab="file">📄 上傳單字表檔案</button>
+    <button class="tab-btn" data-tab="image">📷 上傳照片辨識</button>
+  </div>
+
+  <div class="tab-panel" id="tab-paste">
+    <p class="hint">
+      可以「一次貼上大量單字」，系統會自動辨識、排版：<br>
+      可以是每行一個「英文 中文」（例如 <code>apple 蘋果</code>），也可以只貼英文單字，
+      用逗號、空白或換行隔開都可以（例如 <code>apple, banana, cat</code>），
+      沒有中文意思的會自動幫你查。
+    </p>
+    <textarea id="paste-text" rows="8" placeholder="例如：
+apple 蘋果
+banana - 香蕉
+cat, dog, elephant, tiger"></textarea>
+    <button class="btn primary" id="btn-parse-paste">辨識並預覽</button>
+  </div>
+
+  <div class="tab-panel hidden" id="tab-file">
+    <p class="hint">支援 .txt / .csv 純文字單字表，格式規則跟貼上文字一樣。</p>
+    <input type="file" id="file-input" accept=".txt,.csv">
+    <button class="btn primary" id="btn-parse-file">上傳並辨識</button>
+  </div>
+
+  <div class="tab-panel hidden" id="tab-image">
+    <p class="hint">拍照或上傳單字表照片，系統會在你的瀏覽器裡直接用 OCR 辨識照片中的英文單字（不會上傳到伺服器）。第一次使用會需要下載 OCR 元件，可能要等幾秒鐘。辨識可能不完全準確，請在下方預覽時檢查與修改。</p>
+    <input type="file" id="image-input" accept="image/*" capture="environment">
+    <button class="btn primary" id="btn-parse-image">上傳並辨識</button>
+    <div class="ocr-progress hidden" id="ocr-progress"><div class="ocr-progress-fill" id="ocr-progress-fill"></div></div>
+  </div>
+
+  <div class="field-row" style="margin-top:12px;">
+    <label>加入到分類（單字表名稱）：</label>
+    <input type="text" id="target-tag" list="tag-list" placeholder="例如：Unit 1（留空則為「未分類」）">
+    <datalist id="tag-list"></datalist>
+  </div>
+
+  <div id="parse-status" class="status hidden"></div>
+
+  <div id="preview-wrap" class="hidden">
+    <h3>預覽（可修改後再儲存）</h3>
+    <table class="preview-table">
+      <thead><tr><th>英文</th><th>中文意思</th><th>狀態</th><th></th></tr></thead>
+      <tbody id="preview-body"></tbody>
+    </table>
+    <button class="btn primary" id="btn-save-entries">儲存到單字庫</button>
+    <button class="btn" id="btn-cancel-preview">取消</button>
+  </div>
+</section>
+
+<section class="card">
+  <div class="list-header">
+    <h2>我的單字庫（<span id="word-count">0</span> 個）</h2>
+    <button class="btn small" id="export-btn">⬇️ 匯出 CSV</button>
+  </div>
+
+  <div class="toolbar">
+    <select id="filter-tag"><option value="">全部分類</option></select>
+    <input type="text" id="filter-search" placeholder="🔍 搜尋英文或中文...">
+    <div class="segmented" id="filter-status">
+      <button class="seg-btn active" data-status="">全部</button>
+      <button class="seg-btn" data-status="mastered">已精熟</button>
+      <button class="seg-btn" data-status="learning">學習中</button>
+      <button class="seg-btn" data-status="starred">⭐ 已加星號</button>
+    </div>
+  </div>
+
+  <div class="bulk-bar hidden" id="bulk-bar">
+    <span id="bulk-count"></span>
+    <input type="text" id="bulk-tag-input" placeholder="移動到分類...">
+    <button class="btn small" id="bulk-move">移動</button>
+    <button class="btn small danger" id="bulk-delete">刪除選取</button>
+  </div>
+
+  <table class="word-table">
+    <thead>
+      <tr>
+        <th><input type="checkbox" id="select-all"></th>
+        <th></th>
+        <th>英文</th>
+        <th>中文</th>
+        <th>分類</th>
+        <th>熟悉度</th>
+        <th>答對/答錯</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="word-table-body"></tbody>
+  </table>
+  <p id="empty-hint" class="hint hidden">沒有符合條件的單字。</p>
+</section>
+
+</main>
+<script src="js/store.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/translate.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="js/ocr.js"></script>
+<script src="js/speak.js"></script>
+<script src="js/words.js"></script>
+<script src="js/nav.js"></script>
+</body>
+</html>

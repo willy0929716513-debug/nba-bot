@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>測驗設定 - 背單字</title>
+<link rel="stylesheet" href="css/style.css">
+<script>
+  (function () {
+    var saved = localStorage.getItem("vocab-theme");
+    if (saved) document.documentElement.setAttribute("data-theme", saved);
+  })();
+</script>
+</head>
+<body>
+<div id="topbar-root"></div>
+<main class="container">
+<section class="card">
+  <h2>開始測驗</h2>
+
+  <div class="field-row">
+    <label>範圍</label>
+    <select id="q-tag"><option value="">全部單字</option></select>
+  </div>
+
+  <div class="field-row">
+    <label>測驗方式</label>
+    <select id="q-mode">
+      <option value="en2zh">英文 → 中文（選擇題）</option>
+      <option value="zh2en">中文 → 英文（選擇題）</option>
+      <option value="spelling">拼字測驗（看中文，寫出英文）</option>
+      <option value="listening">聽力測驗（聽發音，寫出英文）</option>
+    </select>
+  </div>
+
+  <div class="field-row">
+    <label>題數</label>
+    <input type="number" id="q-count" value="10" min="1" max="50">
+  </div>
+
+  <div class="field-row">
+    <label><input type="checkbox" id="q-due-only"> 只考今天到期複習的單字（不夠的話會用全部單字補滿）</label>
+  </div>
+
+  <div id="q-error" class="status error hidden"></div>
+  <button class="btn primary" id="btn-start-quiz">開始測驗</button>
+</section>
+</main>
+<script src="js/store.js"></script>
+<script>
+  document.getElementById("q-tag").innerHTML =
+    `<option value="">全部單字</option>` +
+    Store.listTags().map((t) => {
+      const count = Store.listWords({ tag: t }).length;
+      return `<option value="${t}">${t}（${count} 個）</option>`;
+    }).join("");
+
+  document.getElementById("btn-start-quiz").addEventListener("click", () => {
+    const tag = document.getElementById("q-tag").value;
+    const mode = document.getElementById("q-mode").value;
+    const count = document.getElementById("q-count").value;
+    const dueOnly = document.getElementById("q-due-only").checked ? "1" : "0";
+    const params = new URLSearchParams({ tag, mode, count, due_only: dueOnly });
+    window.location.href = "quiz-play.html?" + params.toString();
+  });
+</script>
+<script src="js/nav.js"></script>
+</body>
+</html>

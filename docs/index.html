@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>總覽 - 背單字</title>
+<link rel="stylesheet" href="css/style.css">
+<script>
+  (function () {
+    var saved = localStorage.getItem("vocab-theme");
+    if (saved) document.documentElement.setAttribute("data-theme", saved);
+  })();
+</script>
+</head>
+<body>
+<div id="topbar-root"></div>
+<main class="container">
+
+<section class="stat-grid" id="stat-grid"></section>
+
+<section class="card action-row">
+  <a class="btn primary big" href="flashcards.html">🔁 開始複習（優先到期單字）</a>
+  <a class="btn big" href="quiz.html">📝 開始測驗</a>
+  <a class="btn big" href="match.html">🧩 配對遊戲</a>
+  <a class="btn big" href="words.html">➕ 新增單字</a>
+</section>
+
+<section class="card hidden" id="box-chart-card">
+  <h2>熟悉度分布</h2>
+  <p class="hint">每次測驗/複習答對，單字就會往右晉級（複習間隔變長）；答錯會退回第 1 盒重新練習。</p>
+  <div class="viz-root box-chart" id="box-chart"></div>
+</section>
+
+<section class="card hidden" id="tag-card">
+  <h2>我的單字表</h2>
+  <div class="tag-chip-list" id="tag-chip-list"></div>
+</section>
+
+<section class="card empty-state hidden" id="empty-card">
+  <p>還沒有任何單字，先去<a href="words.html">新增單字</a>開始建立你的單字庫吧！</p>
+</section>
+
+</main>
+<script src="js/store.js"></script>
+<script>
+  const stats = Store.getStats();
+  const tags = Store.listTags();
+
+  document.getElementById("stat-grid").innerHTML = `
+    <div class="stat-tile"><div class="stat-value">${stats.total}</div><div class="stat-label">總單字數</div></div>
+    <div class="stat-tile"><div class="stat-value">${stats.mastered}</div><div class="stat-label">已精熟</div></div>
+    <div class="stat-tile accent"><div class="stat-value">${stats.due}</div><div class="stat-label">今天待複習</div></div>
+    <div class="stat-tile"><div class="stat-value">${stats.accuracy !== null ? stats.accuracy + "%" : "—"}</div><div class="stat-label">測驗正確率</div></div>
+  `;
+
+  if (stats.total > 0) {
+    document.getElementById("box-chart-card").classList.remove("hidden");
+    const labels = { 1: "第 1 盒・剛學", 2: "第 2 盒", 3: "第 3 盒", 4: "第 4 盒", 5: "第 5 盒・已精熟" };
+    const maxCount = Math.max(...Object.values(stats.boxCounts));
+    document.getElementById("box-chart").innerHTML = [1, 2, 3, 4, 5]
+      .map((level) => {
+        const c = stats.boxCounts[level];
+        const pct = maxCount ? (c / maxCount) * 100 : 0;
+        return `
+          <div class="box-row">
+            <div class="box-label">${labels[level]}</div>
+            <div class="box-track"><div class="box-fill box-level-${level}" style="width:${pct}%"></div></div>
+            <div class="box-count">${c}</div>
+          </div>`;
+      })
+      .join("");
+  }
+
+  if (tags.length) {
+    document.getElementById("tag-card").classList.remove("hidden");
+    document.getElementById("tag-chip-list").innerHTML = tags
+      .map((t) => `<a class="tag-chip" href="words.html?tag=${encodeURIComponent(t)}">${t}</a>`)
+      .join("");
+  }
+
+  if (stats.total === 0) {
+    document.getElementById("empty-card").classList.remove("hidden");
+  }
+</script>
+<script src="js/nav.js"></script>
+</body>
+</html>
