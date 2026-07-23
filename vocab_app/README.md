@@ -33,7 +33,23 @@
 ### 介面
 - 響應式版面（手機/電腦皆可用），支援深色模式（依系統設定自動切換，也可手動用右上角按鈕切換，會記住偏好）
 
-## 安裝
+## 安裝與啟動
+
+### 最簡單：一鍵腳本
+
+下載這個專案後，在 `vocab_app` 資料夾執行：
+
+- **macOS / Linux**：
+  ```bash
+  cd vocab_app
+  ./start.sh
+  ```
+- **Windows**：直接雙擊 `vocab_app/start.bat`（或在 cmd 執行）。
+
+腳本會自動檢查/安裝 Tesseract OCR、建立 Python 虛擬環境、安裝套件，並啟動網站在 http://127.0.0.1:5000。
+之後要再次啟動，一樣執行同一個指令即可（套件已裝好的話會很快）。
+
+### 手動安裝（如果不想用腳本）
 
 1. 安裝 Tesseract OCR（照片辨識需要）：
    - macOS: `brew install tesseract`
