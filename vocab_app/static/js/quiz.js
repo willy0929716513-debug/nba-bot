@@ -2,6 +2,7 @@ const params = new URLSearchParams(window.location.search);
 const tag = params.get("tag") || "";
 const mode = params.get("mode") || "en2zh";
 const count = params.get("count") || 10;
+const dueOnly = params.get("due_only") === "1";
 
 let questions = [];
 let current = 0;
@@ -15,7 +16,7 @@ async function loadQuiz() {
   const res = await fetch("/api/quiz/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tag, mode, count: Number(count) }),
+    body: JSON.stringify({ tag, mode, count: Number(count), due_only: dueOnly }),
   });
   const data = await res.json();
   if (data.error) {

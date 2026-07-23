@@ -1,6 +1,8 @@
+import csv
+import io
 import random
 
-from flask import Flask, jsonify, redirect, render_template, request, url_for
+from flask import Flask, Response, jsonify, redirect, render_template, request, url_for
 
 import db
 import ocr
@@ -13,9 +15,15 @@ app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 8MB，足夠一張單字�
 db.init_db()
 
 
+# ---------- Pages ----------
+
 @app.route("/")
-def home():
-    return redirect(url_for("words_page"))
+def dashboard_page():
+    conn = db.get_connection()
+    stats = db.get_stats(conn)
+    tags = db.list_tags(conn)
+    conn.close()
+    return render_template("dashboard.html", stats=stats, tags=tags)
 
 
 @app.route("/words")
@@ -32,9 +40,7 @@ def words_page():
 def quiz_setup_page():
     conn = db.get_connection()
     tags = db.list_tags(conn)
-    tag_counts = {
-        t: len(db.list_words(conn, t)) for t in tags
-    }
+    tag_counts = {t: len(db.list_words(conn, t)) for t in tags}
     conn.close()
     return render_template("quiz_setup.html", tags=tags, tag_counts=tag_counts)
 
@@ -44,7 +50,23 @@ def quiz_play_page():
     return render_template("quiz.html")
 
 
-# ---------- API ----------
+@app.route("/study/flashcards")
+def flashcards_page():
+    conn = db.get_connection()
+    tags = db.list_tags(conn)
+    conn.close()
+    return render_template("flashcards.html", tags=tags)
+
+
+@app.route("/study/match")
+def match_page():
+    conn = db.get_connection()
+    tags = db.list_tags(conn)
+    conn.close()
+    return render_template("match.html", tags=tags)
+
+
+# ---------- Word bank API ----------
 
 @app.route("/api/words/parse", methods=["POST"])
 def api_parse():
@@ -88,6 +110,19 @@ def api_save():
     return jsonify(added=added, updated=updated, skipped=skipped)
 
 
+@app.route("/api/words/list")
+def api_words_list():
+    conn = db.get_connection()
+    words = db.list_words(
+        conn,
+        tag=request.args.get("tag") or None,
+        search=request.args.get("q") or None,
+        status=request.args.get("status") or None,
+    )
+    conn.close()
+    return jsonify(words=words)
+
+
 @app.route("/api/words/<int:word_id>", methods=["PUT"])
 def api_update_word(word_id):
     payload = request.get_json(force=True) or {}
@@ -111,6 +146,56 @@ def api_delete_word(word_id):
     return jsonify(ok=True)
 
 
+@app.route("/api/words/<int:word_id>/star", methods=["POST"])
+def api_star_word(word_id):
+    payload = request.get_json(force=True) or {}
+    conn = db.get_connection()
+    db.set_starred(conn, word_id, bool(payload.get("starred")))
+    conn.close()
+    return jsonify(ok=True)
+
+
+@app.route("/api/words/bulk_delete", methods=["POST"])
+def api_bulk_delete():
+    payload = request.get_json(force=True) or {}
+    ids = payload.get("ids") or []
+    conn = db.get_connection()
+    count = db.bulk_delete(conn, ids)
+    conn.close()
+    return jsonify(deleted=count)
+
+
+@app.route("/api/words/bulk_tag", methods=["POST"])
+def api_bulk_tag():
+    payload = request.get_json(force=True) or {}
+    ids = payload.get("ids") or []
+    tag = payload.get("tag") or "未分類"
+    conn = db.get_connection()
+    count = db.bulk_set_tag(conn, ids, tag)
+    conn.close()
+    return jsonify(updated=count)
+
+
+@app.route("/api/words/export")
+def api_export():
+    conn = db.get_connection()
+    words = db.list_words(conn, tag=request.args.get("tag") or None)
+    conn.close()
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["english", "chinese", "tag"])
+    for w in words:
+        writer.writerow([w["english"], w["chinese"], w["tag"]])
+
+    filename = f"vocab_{request.args.get('tag') or 'all'}.csv"
+    return Response(
+        buf.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 @app.route("/api/lookup")
 def api_lookup():
     word = request.args.get("word", "").strip()
@@ -122,15 +207,46 @@ def api_lookup():
     return jsonify(chinese=result)
 
 
+# ---------- Study (flashcards / match) API ----------
+
+@app.route("/api/study/cards")
+def api_study_cards():
+    tag = request.args.get("tag") or None
+    count = max(1, min(int(request.args.get("count", 20)), 100))
+    due_only = request.args.get("due_only") == "1"
+    conn = db.get_connection()
+    words = db.pick_quiz_words(conn, tag, count, due_only=due_only)
+    conn.close()
+    cards = [{"word_id": w["id"], "english": w["english"], "chinese": w["chinese"]} for w in words]
+    random.shuffle(cards)
+    return jsonify(cards=cards)
+
+
+@app.route("/api/study/match")
+def api_study_match():
+    tag = request.args.get("tag") or None
+    count = max(2, min(int(request.args.get("count", 6)), 8))
+    conn = db.get_connection()
+    words = db.pick_quiz_words(conn, tag, count)
+    conn.close()
+    if len(words) < 2:
+        return jsonify(error="這個範圍內單字太少（至少需要 2 個已經有中文意思的單字）。"), 400
+    pairs = [{"word_id": w["id"], "english": w["english"], "chinese": w["chinese"]} for w in words]
+    return jsonify(pairs=pairs)
+
+
+# ---------- Quiz API ----------
+
 @app.route("/api/quiz/generate", methods=["POST"])
 def api_quiz_generate():
     payload = request.get_json(force=True) or {}
     tag = payload.get("tag") or None
     mode = payload.get("mode", "en2zh")
     count = max(1, min(int(payload.get("count", 10)), 50))
+    due_only = bool(payload.get("due_only"))
 
     conn = db.get_connection()
-    words = db.pick_quiz_words(conn, tag, count)
+    words = db.pick_quiz_words(conn, tag, count, due_only=due_only)
     if len(words) < 1:
         conn.close()
         return jsonify(error="這個範圍內沒有可以測驗的單字（需要已經有中文意思的單字）。"), 400

@@ -1,4 +1,9 @@
 let currentEntries = [];
+let allWords = window.__INITIAL_WORDS__ || [];
+let currentTag = window.__INITIAL_TAG__ || "";
+let currentStatus = "";
+let currentSearch = "";
+let selectedIds = new Set();
 
 // ---- tabs ----
 document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -59,7 +64,7 @@ function statusLabel(status) {
 }
 
 function escapeHtml(s) {
-  return (s || "").replace(/[&<>"']/g, (c) => ({
+  return (s || "").toString().replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   }[c]));
 }
@@ -125,41 +130,210 @@ document.getElementById("btn-save-entries").addEventListener("click", async () =
   });
   const data = await res.json();
   showStatus(`已新增 ${data.added} 個、更新 ${data.updated} 個，跳過 ${data.skipped} 個重複的單字。`);
-  setTimeout(() => window.location.reload(), 900);
+  document.getElementById("preview-wrap").classList.add("hidden");
+  currentEntries = [];
+  await reloadWords();
 });
 
-// ---- word bank table: inline edit / delete ----
-document.querySelectorAll(".word-table .editable").forEach((cell) => {
-  cell.addEventListener("click", () => {
-    if (cell.querySelector("input")) return;
-    const original = cell.textContent.trim() === "（尚未填寫）" ? "" : cell.textContent.trim();
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = original;
-    cell.textContent = "";
-    cell.appendChild(input);
-    input.focus();
-    const commit = async () => {
-      const value = input.value.trim();
-      cell.textContent = value || "（尚未填寫）";
-      const id = cell.closest("tr").dataset.id;
-      const field = cell.dataset.field;
-      await fetch(`/api/words/${id}`, {
-        method: "PUT",
+// ---- word bank table ----
+function boxDots(level) {
+  let out = "";
+  for (let i = 1; i <= 5; i++) {
+    out += `<span class="dot ${i <= level ? "filled" : ""}"></span>`;
+  }
+  return `<span class="dots" title="第 ${level} / 5 盒">${out}</span>`;
+}
+
+function renderTable() {
+  const tbody = document.getElementById("word-table-body");
+  tbody.innerHTML = "";
+  document.getElementById("word-count").textContent = allWords.length;
+  document.getElementById("empty-hint").classList.toggle("hidden", allWords.length > 0);
+
+  allWords.forEach((w) => {
+    const tr = document.createElement("tr");
+    tr.dataset.id = w.id;
+    tr.innerHTML = `
+      <td><input type="checkbox" class="row-select" ${selectedIds.has(w.id) ? "checked" : ""}></td>
+      <td><button class="star-btn ${w.starred ? "on" : ""}" title="加星號">${w.starred ? "⭐" : "☆"}</button></td>
+      <td class="editable" data-field="english">${escapeHtml(w.english)} <button class="speaker-btn" title="播放發音">🔊</button></td>
+      <td class="editable" data-field="chinese">${w.chinese ? escapeHtml(w.chinese) : "（尚未填寫）"}</td>
+      <td class="editable" data-field="tag">${escapeHtml(w.tag)}</td>
+      <td>${boxDots(w.box_level)}</td>
+      <td>${w.correct_count} / ${w.wrong_count}</td>
+      <td><button class="btn danger small btn-delete">刪除</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  attachRowHandlers();
+  updateBulkBar();
+}
+
+function speak(word) {
+  if (!("speechSynthesis" in window)) return;
+  const utter = new SpeechSynthesisUtterance(word);
+  utter.lang = "en-US";
+  utter.rate = 0.9;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utter);
+}
+
+function attachRowHandlers() {
+  document.querySelectorAll(".row-select").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const id = Number(cb.closest("tr").dataset.id);
+      if (cb.checked) selectedIds.add(id); else selectedIds.delete(id);
+      updateBulkBar();
+    });
+  });
+
+  document.querySelectorAll(".speaker-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const english = btn.closest("td").textContent.trim();
+      speak(english);
+    });
+  });
+
+  document.querySelectorAll(".star-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const tr = btn.closest("tr");
+      const id = Number(tr.dataset.id);
+      const w = allWords.find((x) => x.id === id);
+      w.starred = w.starred ? 0 : 1;
+      btn.classList.toggle("on", !!w.starred);
+      btn.textContent = w.starred ? "⭐" : "☆";
+      await fetch(`/api/words/${id}/star`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: value }),
+        body: JSON.stringify({ starred: !!w.starred }),
       });
-    };
-    input.addEventListener("blur", commit);
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
+    });
+  });
+
+  document.querySelectorAll(".word-table .editable").forEach((cell) => {
+    cell.addEventListener("click", (e) => {
+      if (e.target.classList.contains("speaker-btn")) return;
+      if (cell.querySelector("input")) return;
+      const field = cell.dataset.field;
+      const id = Number(cell.closest("tr").dataset.id);
+      const w = allWords.find((x) => x.id === id);
+      const original = w[field] || "";
+      cell.innerHTML = "";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = original;
+      cell.appendChild(input);
+      input.focus();
+      const commit = async () => {
+        const value = input.value.trim();
+        w[field] = value;
+        await fetch(`/api/words/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [field]: value }),
+        });
+        renderTable();
+      };
+      input.addEventListener("blur", commit);
+      input.addEventListener("keydown", (e2) => { if (e2.key === "Enter") input.blur(); });
+    });
+  });
+
+  document.querySelectorAll(".btn-delete").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const tr = btn.closest("tr");
+      const id = Number(tr.dataset.id);
+      const w = allWords.find((x) => x.id === id);
+      if (!confirm(`確定要刪除「${w.english}」嗎？`)) return;
+      await fetch(`/api/words/${id}`, { method: "DELETE" });
+      allWords = allWords.filter((x) => x.id !== id);
+      selectedIds.delete(id);
+      renderTable();
+    });
+  });
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById("bulk-bar");
+  if (selectedIds.size === 0) {
+    bar.classList.add("hidden");
+    return;
+  }
+  bar.classList.remove("hidden");
+  document.getElementById("bulk-count").textContent = `已選取 ${selectedIds.size} 個`;
+}
+
+document.getElementById("select-all").addEventListener("change", (e) => {
+  if (e.target.checked) {
+    allWords.forEach((w) => selectedIds.add(w.id));
+  } else {
+    selectedIds.clear();
+  }
+  renderTable();
+});
+
+document.getElementById("bulk-delete").addEventListener("click", async () => {
+  if (!selectedIds.size) return;
+  if (!confirm(`確定要刪除選取的 ${selectedIds.size} 個單字嗎？`)) return;
+  await fetch("/api/words/bulk_delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids: [...selectedIds] }),
+  });
+  allWords = allWords.filter((w) => !selectedIds.has(w.id));
+  selectedIds.clear();
+  renderTable();
+});
+
+document.getElementById("bulk-move").addEventListener("click", async () => {
+  const tag = document.getElementById("bulk-tag-input").value.trim();
+  if (!tag || !selectedIds.size) return;
+  await fetch("/api/words/bulk_tag", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids: [...selectedIds], tag }),
+  });
+  document.getElementById("bulk-tag-input").value = "";
+  selectedIds.clear();
+  await reloadWords();
+});
+
+// ---- filters ----
+async function reloadWords() {
+  const params = new URLSearchParams();
+  if (currentTag) params.set("tag", currentTag);
+  if (currentSearch) params.set("q", currentSearch);
+  if (currentStatus) params.set("status", currentStatus);
+  const res = await fetch("/api/words/list?" + params.toString());
+  const data = await res.json();
+  allWords = data.words;
+  renderTable();
+}
+
+document.getElementById("filter-tag").addEventListener("change", (e) => {
+  currentTag = e.target.value;
+  document.getElementById("export-link").href = "/api/words/export" + (currentTag ? `?tag=${encodeURIComponent(currentTag)}` : "");
+  reloadWords();
+});
+
+let searchTimer = null;
+document.getElementById("filter-search").addEventListener("input", (e) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    currentSearch = e.target.value.trim();
+    reloadWords();
+  }, 250);
+});
+
+document.querySelectorAll("#filter-status .seg-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#filter-status .seg-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentStatus = btn.dataset.status;
+    reloadWords();
   });
 });
 
-document.querySelectorAll(".btn-delete").forEach((btn) => {
-  btn.addEventListener("click", async () => {
-    const tr = btn.closest("tr");
-    if (!confirm(`確定要刪除「${tr.children[0].textContent.trim()}」嗎？`)) return;
-    await fetch(`/api/words/${tr.dataset.id}`, { method: "DELETE" });
-    tr.remove();
-  });
-});
+renderTable();

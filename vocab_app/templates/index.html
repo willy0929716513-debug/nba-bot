@@ -59,36 +59,54 @@ cat, dog, elephant, tiger"></textarea>
 
 <section class="card">
   <div class="list-header">
-    <h2>我的單字庫（{{ words|length }} 個）</h2>
-    <form method="get" class="tag-filter">
-      <select name="tag" onchange="this.form.submit()">
-        <option value="">全部分類</option>
-        {% for t in tags %}
-        <option value="{{ t }}" {% if t == current_tag %}selected{% endif %}>{{ t }}</option>
-        {% endfor %}
-      </select>
-    </form>
+    <h2>我的單字庫（<span id="word-count">{{ words|length }}</span> 個）</h2>
+    <a class="btn small" id="export-link" href="{{ url_for('api_export', tag=current_tag or '') }}">⬇️ 匯出 CSV</a>
   </div>
 
-  {% if words %}
-  <table class="word-table">
-    <thead><tr><th>英文</th><th>中文</th><th>分類</th><th>答對/答錯</th><th></th></tr></thead>
-    <tbody>
-      {% for w in words %}
-      <tr data-id="{{ w.id }}">
-        <td class="editable" data-field="english">{{ w.english }}</td>
-        <td class="editable" data-field="chinese">{{ w.chinese or '（尚未填寫）' }}</td>
-        <td class="editable" data-field="tag">{{ w.tag }}</td>
-        <td>{{ w.correct_count }} / {{ w.wrong_count }}</td>
-        <td><button class="btn danger small btn-delete">刪除</button></td>
-      </tr>
+  <div class="toolbar">
+    <select id="filter-tag">
+      <option value="">全部分類</option>
+      {% for t in tags %}
+      <option value="{{ t }}" {% if t == current_tag %}selected{% endif %}>{{ t }}</option>
       {% endfor %}
-    </tbody>
+    </select>
+    <input type="text" id="filter-search" placeholder="🔍 搜尋英文或中文...">
+    <div class="segmented" id="filter-status">
+      <button class="seg-btn active" data-status="">全部</button>
+      <button class="seg-btn" data-status="mastered">已精熟</button>
+      <button class="seg-btn" data-status="learning">學習中</button>
+      <button class="seg-btn" data-status="starred">⭐ 已加星號</button>
+    </div>
+  </div>
+
+  <div class="bulk-bar hidden" id="bulk-bar">
+    <span id="bulk-count"></span>
+    <input type="text" id="bulk-tag-input" placeholder="移動到分類...">
+    <button class="btn small" id="bulk-move">移動</button>
+    <button class="btn small danger" id="bulk-delete">刪除選取</button>
+  </div>
+
+  <table class="word-table">
+    <thead>
+      <tr>
+        <th><input type="checkbox" id="select-all"></th>
+        <th></th>
+        <th>英文</th>
+        <th>中文</th>
+        <th>分類</th>
+        <th>熟悉度</th>
+        <th>答對/答錯</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="word-table-body"></tbody>
   </table>
-  {% else %}
-  <p class="hint">還沒有單字，先在上面新增一些吧！</p>
-  {% endif %}
+  <p id="empty-hint" class="hint hidden">沒有符合條件的單字。</p>
 </section>
 
+<script>
+  window.__INITIAL_WORDS__ = {{ words | tojson }};
+  window.__INITIAL_TAG__ = {{ (current_tag or "") | tojson }};
+</script>
 <script src="{{ url_for('static', filename='js/words.js') }}"></script>
 {% endblock %}

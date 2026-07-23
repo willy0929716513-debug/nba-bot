@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}總覽 - 背單字{% endblock %}
+{% block content %}
+
+<section class="stat-grid">
+  <div class="stat-tile">
+    <div class="stat-value">{{ stats.total }}</div>
+    <div class="stat-label">總單字數</div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-value">{{ stats.mastered }}</div>
+    <div class="stat-label">已精熟</div>
+  </div>
+  <div class="stat-tile accent">
+    <div class="stat-value">{{ stats.due }}</div>
+    <div class="stat-label">今天待複習</div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-value">{{ stats.accuracy is not none and (stats.accuracy ~ '%') or '—' }}</div>
+    <div class="stat-label">測驗正確率</div>
+  </div>
+</section>
+
+<section class="card action-row">
+  <a class="btn primary big" href="{{ url_for('flashcards_page') }}">🔁 開始複習（優先到期單字）</a>
+  <a class="btn big" href="{{ url_for('quiz_setup_page') }}">📝 開始測驗</a>
+  <a class="btn big" href="{{ url_for('match_page') }}">🧩 配對遊戲</a>
+  <a class="btn big" href="{{ url_for('words_page') }}">➕ 新增單字</a>
+</section>
+
+{% if stats.total > 0 %}
+<section class="card">
+  <h2>熟悉度分布</h2>
+  <p class="hint">每次測驗/複習答對，單字就會往右晉級（複習間隔變長）；答錯會退回第 1 盒重新練習。</p>
+  <div class="viz-root box-chart">
+    {% set box_labels = {1: '第 1 盒・剛學', 2: '第 2 盒', 3: '第 3 盒', 4: '第 4 盒', 5: '第 5 盒・已精熟'} %}
+    {% set max_count = stats.box_counts.values() | max %}
+    {% for level in range(1, 6) %}
+    {% set c = stats.box_counts[level] %}
+    <div class="box-row">
+      <div class="box-label">{{ box_labels[level] }}</div>
+      <div class="box-track">
+        <div class="box-fill box-level-{{ level }}" style="width: {{ (c / max_count * 100) if max_count else 0 }}%"></div>
+      </div>
+      <div class="box-count">{{ c }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if tags %}
+<section class="card">
+  <h2>我的單字表</h2>
+  <div class="tag-chip-list">
+    {% for t in tags %}
+    <a class="tag-chip" href="{{ url_for('words_page', tag=t) }}">{{ t }}</a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if stats.total == 0 %}
+<section class="card empty-state">
+  <p>還沒有任何單字，先去<a href="{{ url_for('words_page') }}">新增單字</a>開始建立你的單字庫吧！</p>
+</section>
+{% endif %}
+
+{% endblock %}

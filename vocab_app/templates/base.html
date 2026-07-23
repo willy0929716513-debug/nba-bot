@@ -5,17 +5,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}背單字{% endblock %}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script>
+  // 在畫面畫出來之前先套用主題，避免閃一下錯誤的顏色
+  (function () {
+    var saved = localStorage.getItem("vocab-theme");
+    if (saved) document.documentElement.setAttribute("data-theme", saved);
+  })();
+</script>
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="{{ url_for('words_page') }}">📚 背單字</a>
+  <a class="brand" href="{{ url_for('dashboard_page') }}">📚 背單字</a>
   <nav>
+    <a href="{{ url_for('dashboard_page') }}">總覽</a>
     <a href="{{ url_for('words_page') }}">單字庫</a>
+    <a href="{{ url_for('flashcards_page') }}">單字卡</a>
     <a href="{{ url_for('quiz_setup_page') }}">測驗</a>
+    <a href="{{ url_for('match_page') }}">配對遊戲</a>
+    <button class="theme-toggle" id="theme-toggle" title="切換深色/淺色模式">🌙</button>
   </nav>
 </header>
 <main class="container">
   {% block content %}{% endblock %}
 </main>
+<script>
+  (function () {
+    var btn = document.getElementById("theme-toggle");
+    function currentTheme() {
+      var attr = document.documentElement.getAttribute("data-theme");
+      if (attr) return attr;
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    function updateIcon() {
+      btn.textContent = currentTheme() === "dark" ? "☀️" : "🌙";
+    }
+    btn.addEventListener("click", function () {
+      var next = currentTheme() === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      localStorage.setItem("vocab-theme", next);
+      updateIcon();
+    });
+    updateIcon();
+  })();
+</script>
 </body>
 </html>

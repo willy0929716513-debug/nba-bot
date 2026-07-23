@@ -29,6 +29,10 @@
     <input type="number" id="q-count" value="10" min="1" max="50">
   </div>
 
+  <div class="field-row">
+    <label><input type="checkbox" id="q-due-only"> 只考今天到期複習的單字（不夠的話會用全部單字補滿）</label>
+  </div>
+
   <div id="q-error" class="status error hidden"></div>
   <button class="btn primary" id="btn-start-quiz">開始測驗</button>
 </section>
@@ -37,7 +41,8 @@ document.getElementById("btn-start-quiz").addEventListener("click", () => {
   const tag = document.getElementById("q-tag").value;
   const mode = document.getElementById("q-mode").value;
   const count = document.getElementById("q-count").value;
-  const params = new URLSearchParams({ tag, mode, count });
+  const dueOnly = document.getElementById("q-due-only").checked ? "1" : "0";
+  const params = new URLSearchParams({ tag, mode, count, due_only: dueOnly });
   window.location.href = "{{ url_for('quiz_play_page') }}?" + params.toString();
 });
 </script>

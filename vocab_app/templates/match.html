@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}配對遊戲 - 背單字{% endblock %}
+{% block content %}
+
+<section class="card" id="setup-card">
+  <h2>🧩 配對遊戲</h2>
+  <p class="hint">點兩張卡片，配對出正確的英文和中文意思，看看你多快能全部配對完成！</p>
+  <div class="field-row">
+    <label>範圍</label>
+    <select id="m-tag">
+      <option value="">全部單字</option>
+      {% for t in tags %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field-row">
+    <label>配對組數</label>
+    <input type="number" id="m-count" value="6" min="2" max="8">
+  </div>
+  <div id="m-error" class="status error hidden"></div>
+  <button class="btn primary" id="btn-start-match">開始遊戲</button>
+</section>
+
+<section class="card hidden" id="play-card">
+  <div class="match-header">
+    <div>⏱️ <span id="m-timer">0</span> 秒</div>
+    <div>❌ 錯誤 <span id="m-mistakes">0</span> 次</div>
+  </div>
+  <div class="match-grid" id="match-grid"></div>
+</section>
+
+<section class="card hidden" id="done-card">
+  <h2>配對完成！🎉</h2>
+  <p id="m-summary"></p>
+  <button class="btn primary" id="btn-restart">再玩一次</button>
+  <a class="btn" href="{{ url_for('dashboard_page') }}">回總覽</a>
+</section>
+
+<script src="{{ url_for('static', filename='js/match.js') }}"></script>
+{% endblock %}
