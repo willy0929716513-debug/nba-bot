@@ -1,11 +1,52 @@
 /* 純瀏覽器端的單字資料庫（用 localStorage 存），對應原本 Flask 版的 db.py。 */
 const Store = (() => {
   const KEY = "vocab_words_v1";
+  const ACTIVITY_KEY = "vocab_activity_v1";
   const MAX_BOX = 5;
   const BOX_INTERVAL_DAYS = { 1: 0, 2: 1, 3: 3, 4: 7, 5: 14 };
+  const DAILY_GOAL = 20;
 
   function now() {
     return new Date().toISOString();
+  }
+
+  function todayStr() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function loadActivity() {
+    try {
+      return JSON.parse(localStorage.getItem(ACTIVITY_KEY)) || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function logActivity() {
+    const act = loadActivity();
+    const t = todayStr();
+    act[t] = (act[t] || 0) + 1;
+    localStorage.setItem(ACTIVITY_KEY, JSON.stringify(act));
+  }
+
+  function getStreak() {
+    const act = loadActivity();
+    let streak = 0;
+    const d = new Date();
+    if (!act[todayStr()]) d.setDate(d.getDate() - 1);
+    while (true) {
+      const key = d.toISOString().slice(0, 10);
+      if (act[key]) {
+        streak++;
+        d.setDate(d.getDate() - 1);
+      } else break;
+    }
+    return streak;
+  }
+
+  function getTodayProgress() {
+    const count = loadActivity()[todayStr()] || 0;
+    return { count, goal: DAILY_GOAL, pct: Math.min(100, Math.round((count / DAILY_GOAL) * 100)) };
   }
 
   function load() {
@@ -137,6 +178,7 @@ const Store = (() => {
     w.next_review_at = next.toISOString();
     if (correct) w.correct_count += 1; else w.wrong_count += 1;
     persist(words);
+    logActivity();
   }
 
   function getStats() {
@@ -152,7 +194,9 @@ const Store = (() => {
     const accuracy = attempts ? Math.round((100 * totalCorrect) / attempts) : null;
     const boxCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     words.forEach((w) => { boxCounts[w.box_level] = (boxCounts[w.box_level] || 0) + 1; });
-    return { total, mastered, due, starred, accuracy, boxCounts };
+    const xp = totalCorrect * 10 + totalWrong * 2;
+    const level = Math.floor(xp / 100) + 1;
+    return { total, mastered, due, starred, accuracy, boxCounts, totalCorrect, totalWrong, xp, level };
   }
 
   function shuffle(arr) {
@@ -226,6 +270,8 @@ const Store = (() => {
     bulkSetTag,
     recordResult,
     getStats,
+    getStreak,
+    getTodayProgress,
     pickQuizWords,
     randomDistractors,
     exportCsv,

@@ -159,8 +159,8 @@ function renderTable() {
     tr.dataset.id = w.id;
     tr.innerHTML = `
       <td><input type="checkbox" class="row-select" ${selectedIds.has(w.id) ? "checked" : ""}></td>
-      <td><button class="star-btn ${w.starred ? "on" : ""}" title="加星號">${w.starred ? "⭐" : "☆"}</button></td>
-      <td class="editable" data-field="english">${escapeHtml(w.english)} <button class="speaker-btn" title="播放發音">🔊</button></td>
+      <td><button class="star-btn ${w.starred ? "on" : ""}" title="加星號" aria-label="加星號">${w.starred ? "⭐" : "☆"}</button></td>
+      <td class="editable" data-field="english">${escapeHtml(w.english)} <button class="speaker-btn" title="播放發音" aria-label="播放發音">🔊</button></td>
       <td class="editable" data-field="chinese">${w.chinese ? escapeHtml(w.chinese) : "（尚未填寫）"}</td>
       <td class="editable" data-field="tag">${escapeHtml(w.tag)}</td>
       <td>${boxDots(w.box_level)}</td>

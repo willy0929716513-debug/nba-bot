@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>總覽 - 背單字</title>
 <link rel="stylesheet" href="css/style.css">
 <script>
@@ -16,13 +16,22 @@
 <div id="topbar-root"></div>
 <main class="container">
 
+<section class="card hero-card" id="hero-card"></section>
+
+<section class="card quote-card" id="quote-card"></section>
+
 <section class="stat-grid" id="stat-grid"></section>
 
 <section class="card action-row">
-  <a class="btn primary big" href="flashcards.html">🔁 開始複習（優先到期單字）</a>
+  <a class="btn primary big" href="flashcards.html">🔁 開始複習</a>
   <a class="btn big" href="quiz.html">📝 開始測驗</a>
   <a class="btn big" href="match.html">🧩 配對遊戲</a>
   <a class="btn big" href="words.html">➕ 新增單字</a>
+</section>
+
+<section class="card hidden" id="badge-card">
+  <h2>成就</h2>
+  <div class="badge-grid" id="badge-grid"></div>
 </section>
 
 <section class="card hidden" id="box-chart-card">
@@ -37,7 +46,9 @@
 </section>
 
 <section class="card empty-state hidden" id="empty-card">
-  <p>還沒有任何單字，先去<a href="words.html">新增單字</a>開始建立你的單字庫吧！</p>
+  <span class="emoji">📚</span>
+  <p>今天還沒有開始學習</p>
+  <a class="btn primary" href="words.html">開始建立你的單字庫吧！</a>
 </section>
 
 </main>
@@ -45,7 +56,56 @@
 <script>
   const stats = Store.getStats();
   const tags = Store.listTags();
+  const streak = Store.getStreak();
+  const today = Store.getTodayProgress();
 
+  // ---- hero: progress ring + streak + xp/level ----
+  const R = 46;
+  const C = 2 * Math.PI * R;
+  const offset = C * (1 - today.pct / 100);
+  document.getElementById("hero-card").innerHTML = `
+    <div class="ring-wrap">
+      <svg width="108" height="108" viewBox="0 0 108 108">
+        <circle class="ring-track" cx="54" cy="54" r="${R}"></circle>
+        <circle class="ring-fill" cx="54" cy="54" r="${R}"
+          style="stroke-dasharray:${C};stroke-dashoffset:${offset}"></circle>
+      </svg>
+      <div class="ring-center">
+        <div class="num">${today.count}/${today.goal}</div>
+        <div class="label">今日進度</div>
+      </div>
+    </div>
+    <div class="hero-meta">
+      <h2>${streak > 0 ? "繼續保持！" : "開始今天的學習"}</h2>
+      <p>Lv.${stats.level} · ${stats.xp} XP</p>
+      <div class="hero-badges">
+        <span class="pill streak">🔥 連續 ${streak} 天</span>
+        <span class="pill xp">⭐ Lv.${stats.level}</span>
+      </div>
+    </div>
+  `;
+
+  // ---- quote of the day ----
+  const QUOTES = [
+    ["The limits of my language mean the limits of my world.", "— Ludwig Wittgenstein"],
+    ["A different language is a different vision of life.", "— Federico Fellini"],
+    ["To have another language is to possess a second soul.", "— Charlemagne"],
+    ["Learning never exhausts the mind.", "— Leonardo da Vinci"],
+    ["One language sets you in a corridor for life. Two languages open every door along the way.", "— Frank Smith"],
+    ["The beautiful thing about learning is nobody can take it away from you.", "— B.B. King"],
+    ["Practice like you've never won. Perform like you've never lost.", "— Anonymous"],
+    ["Small daily improvements are the key to staggering long-term results.", "— Anonymous"],
+    ["Every word you learn today is a door you can open tomorrow.", "— Anonymous"],
+    ["Consistency is what transforms average into excellence.", "— Anonymous"],
+  ];
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+  const [quote, author] = QUOTES[dayOfYear % QUOTES.length];
+  document.getElementById("quote-card").innerHTML = `
+    <div class="quote-text">"${quote}"</div>
+    <div class="quote-sub">${author} · 每日一句</div>
+  `;
+
+  // ---- stat grid ----
   document.getElementById("stat-grid").innerHTML = `
     <div class="stat-tile"><div class="stat-value">${stats.total}</div><div class="stat-label">總單字數</div></div>
     <div class="stat-tile"><div class="stat-value">${stats.mastered}</div><div class="stat-label">已精熟</div></div>
@@ -53,6 +113,23 @@
     <div class="stat-tile"><div class="stat-value">${stats.accuracy !== null ? stats.accuracy + "%" : "—"}</div><div class="stat-label">測驗正確率</div></div>
   `;
 
+  // ---- achievements ----
+  const ACHIEVEMENTS = [
+    { emoji: "🌱", name: "初學者", unlocked: stats.total >= 1 },
+    { emoji: "📚", name: "單字達人", unlocked: stats.total >= 50 },
+    { emoji: "🔥", name: "連續7天", unlocked: streak >= 7 },
+    { emoji: "🏆", name: "精熟10個", unlocked: stats.mastered >= 10 },
+    { emoji: "💯", name: "正確率90%", unlocked: stats.accuracy !== null && stats.accuracy >= 90 },
+    { emoji: "⭐", name: "收藏家", unlocked: stats.starred >= 5 },
+  ];
+  if (stats.total > 0) {
+    document.getElementById("badge-card").classList.remove("hidden");
+    document.getElementById("badge-grid").innerHTML = ACHIEVEMENTS.map(
+      (a) => `<div class="badge ${a.unlocked ? "unlocked" : ""}"><span class="emoji">${a.emoji}</span><span class="name">${a.name}</span></div>`
+    ).join("");
+  }
+
+  // ---- box chart ----
   if (stats.total > 0) {
     document.getElementById("box-chart-card").classList.remove("hidden");
     const labels = { 1: "第 1 盒・剛學", 2: "第 2 盒", 3: "第 3 盒", 4: "第 4 盒", 5: "第 5 盒・已精熟" };
@@ -71,6 +148,7 @@
       .join("");
   }
 
+  // ---- tags ----
   if (tags.length) {
     document.getElementById("tag-card").classList.remove("hidden");
     document.getElementById("tag-chip-list").innerHTML = tags
