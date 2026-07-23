@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}測驗中 - 背單字{% endblock %}
+{% block content %}
+<section class="card" id="quiz-card">
+  <div id="quiz-progress" class="hint"></div>
+  <div id="quiz-body"></div>
+</section>
+<section class="card hidden" id="result-card">
+  <h2>測驗結果</h2>
+  <p id="result-summary"></p>
+  <div id="result-detail"></div>
+  <a class="btn primary" href="{{ url_for('quiz_setup_page') }}">再測驗一次</a>
+  <a class="btn" href="{{ url_for('words_page') }}">回單字庫</a>
+</section>
+<script src="{{ url_for('static', filename='js/quiz.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}單字庫 - 背單字{% endblock %}
+{% block content %}
+
+<section class="card">
+  <h2>新增單字</h2>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="paste">✍️ 貼上 / 手動輸入</button>
+    <button class="tab-btn" data-tab="file">📄 上傳單字表檔案</button>
+    <button class="tab-btn" data-tab="image">📷 上傳照片辨識</button>
+  </div>
+
+  <div class="tab-panel" id="tab-paste">
+    <p class="hint">
+      可以「一次貼上大量單字」，系統會自動辨識、排版：<br>
+      可以是每行一個「英文 中文」（例如 <code>apple 蘋果</code>），也可以只貼英文單字，
+      用逗號、空白或換行隔開都可以（例如 <code>apple, banana, cat</code>），
+      沒有中文意思的會自動幫你查。
+    </p>
+    <textarea id="paste-text" rows="8" placeholder="例如：
+apple 蘋果
+banana - 香蕉
+cat, dog, elephant, tiger"></textarea>
+    <button class="btn primary" id="btn-parse-paste">辨識並預覽</button>
+  </div>
+
+  <div class="tab-panel hidden" id="tab-file">
+    <p class="hint">支援 .txt / .csv 純文字單字表，格式規則跟貼上文字一樣。</p>
+    <input type="file" id="file-input" accept=".txt,.csv">
+    <button class="btn primary" id="btn-parse-file">上傳並辨識</button>
+  </div>
+
+  <div class="tab-panel hidden" id="tab-image">
+    <p class="hint">拍照或上傳單字表照片，系統會用 OCR 自動辨識照片中的英文單字。辨識可能不完全準確，請在下方預覽時檢查與修改。</p>
+    <input type="file" id="image-input" accept="image/*" capture="environment">
+    <button class="btn primary" id="btn-parse-image">上傳並辨識</button>
+  </div>
+
+  <div class="field-row" style="margin-top:12px;">
+    <label>加入到分類（單字表名稱）：</label>
+    <input type="text" id="target-tag" list="tag-list" placeholder="例如：Unit 1（留空則為「未分類」）">
+    <datalist id="tag-list">
+      {% for t in tags %}<option value="{{ t }}">{% endfor %}
+    </datalist>
+  </div>
+
+  <div id="parse-status" class="status hidden"></div>
+
+  <div id="preview-wrap" class="hidden">
+    <h3>預覽（可修改後再儲存）</h3>
+    <table class="preview-table">
+      <thead><tr><th>英文</th><th>中文意思</th><th>狀態</th><th></th></tr></thead>
+      <tbody id="preview-body"></tbody>
+    </table>
+    <button class="btn primary" id="btn-save-entries">儲存到單字庫</button>
+    <button class="btn" id="btn-cancel-preview">取消</button>
+  </div>
+</section>
+
+<section class="card">
+  <div class="list-header">
+    <h2>我的單字庫（{{ words|length }} 個）</h2>
+    <form method="get" class="tag-filter">
+      <select name="tag" onchange="this.form.submit()">
+        <option value="">全部分類</option>
+        {% for t in tags %}
+        <option value="{{ t }}" {% if t == current_tag %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  {% if words %}
+  <table class="word-table">
+    <thead><tr><th>英文</th><th>中文</th><th>分類</th><th>答對/答錯</th><th></th></tr></thead>
+    <tbody>
+      {% for w in words %}
+      <tr data-id="{{ w.id }}">
+        <td class="editable" data-field="english">{{ w.english }}</td>
+        <td class="editable" data-field="chinese">{{ w.chinese or '（尚未填寫）' }}</td>
+        <td class="editable" data-field="tag">{{ w.tag }}</td>
+        <td>{{ w.correct_count }} / {{ w.wrong_count }}</td>
+        <td><button class="btn danger small btn-delete">刪除</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="hint">還沒有單字，先在上面新增一些吧！</p>
+  {% endif %}
+</section>
+
+<script src="{{ url_for('static', filename='js/words.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}測驗設定 - 背單字{% endblock %}
+{% block content %}
+<section class="card">
+  <h2>開始測驗</h2>
+
+  <div class="field-row">
+    <label>範圍</label>
+    <select id="q-tag">
+      <option value="">全部單字</option>
+      {% for t in tags %}
+      <option value="{{ t }}">{{ t }}（{{ tag_counts[t] }} 個）</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field-row">
+    <label>測驗方式</label>
+    <select id="q-mode">
+      <option value="en2zh">英文 → 中文（選擇題）</option>
+      <option value="zh2en">中文 → 英文（選擇題）</option>
+      <option value="spelling">拼字測驗（看中文，寫出英文）</option>
+      <option value="listening">聽力測驗（聽發音，寫出英文）</option>
+    </select>
+  </div>
+
+  <div class="field-row">
+    <label>題數</label>
+    <input type="number" id="q-count" value="10" min="1" max="50">
+  </div>
+
+  <div id="q-error" class="status error hidden"></div>
+  <button class="btn primary" id="btn-start-quiz">開始測驗</button>
+</section>
+<script>
+document.getElementById("btn-start-quiz").addEventListener("click", () => {
+  const tag = document.getElementById("q-tag").value;
+  const mode = document.getElementById("q-mode").value;
+  const count = document.getElementById("q-count").value;
+  const params = new URLSearchParams({ tag, mode, count });
+  window.location.href = "{{ url_for('quiz_play_page') }}?" + params.toString();
+});
+</script>
+{% endblock %}
