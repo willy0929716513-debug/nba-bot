@@ -18,7 +18,13 @@ CREATE TABLE IF NOT EXISTS words (
     created_at TEXT NOT NULL,
     UNIQUE(english COLLATE NOCASE, tag)
 );
+CREATE TABLE IF NOT EXISTS activity (
+    day TEXT PRIMARY KEY,
+    count INTEGER NOT NULL DEFAULT 0
+);
 """
+
+DAILY_GOAL = 20
 
 # Leitner box system：答對就晉級（下次複習間隔變長），答錯就退回第 1 盒。
 MAX_BOX = 5
@@ -159,6 +165,40 @@ def bulk_set_tag(conn, ids, tag):
     return cur.rowcount
 
 
+def _log_activity(conn):
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    conn.execute(
+        "INSERT INTO activity (day, count) VALUES (?, 1) "
+        "ON CONFLICT(day) DO UPDATE SET count = count + 1",
+        (today,),
+    )
+
+
+def get_streak(conn):
+    rows = conn.execute("SELECT day FROM activity WHERE count > 0").fetchall()
+    days = {r["day"] for r in rows}
+    d = datetime.utcnow().date()
+    today = d.strftime("%Y-%m-%d")
+    if today not in days:
+        d = d - timedelta(days=1)
+    streak = 0
+    while d.strftime("%Y-%m-%d") in days:
+        streak += 1
+        d = d - timedelta(days=1)
+    return streak
+
+
+def get_today_progress(conn):
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    row = conn.execute("SELECT count FROM activity WHERE day = ?", (today,)).fetchone()
+    count = row["count"] if row else 0
+    return {
+        "count": count,
+        "goal": DAILY_GOAL,
+        "pct": min(100, round(100 * count / DAILY_GOAL)),
+    }
+
+
 def record_result(conn, word_id, correct):
     row = conn.execute("SELECT box_level FROM words WHERE id = ?", (word_id,)).fetchone()
     if not row:
@@ -174,6 +214,7 @@ def record_result(conn, word_id, correct):
         f"UPDATE words SET {col} = {col} + 1, box_level = ?, next_review_at = ? WHERE id = ?",
         (box, next_review, word_id),
     )
+    _log_activity(conn)
     conn.commit()
 
 
@@ -195,6 +236,8 @@ def get_stats(conn):
     for row in conn.execute("SELECT box_level, COUNT(*) c FROM words GROUP BY box_level"):
         if row["box_level"] in box_counts:
             box_counts[row["box_level"]] = row["c"]
+    xp = totals["c"] * 10 + totals["w"] * 2
+    level = xp // 100 + 1
     return {
         "total": total,
         "mastered": mastered,
@@ -202,6 +245,10 @@ def get_stats(conn):
         "starred": starred,
         "accuracy": accuracy,
         "box_counts": box_counts,
+        "total_correct": totals["c"],
+        "total_wrong": totals["w"],
+        "xp": xp,
+        "level": level,
     }
 
 

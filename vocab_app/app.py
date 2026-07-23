@@ -1,6 +1,7 @@
 import csv
 import io
 import random
+from datetime import date
 
 from flask import Flask, Response, jsonify, redirect, render_template, request, url_for
 
@@ -8,6 +9,19 @@ import db
 import ocr
 import parser as word_parser
 import translate
+
+QUOTES = [
+    ("The limits of my language mean the limits of my world.", "— Ludwig Wittgenstein"),
+    ("A different language is a different vision of life.", "— Federico Fellini"),
+    ("To have another language is to possess a second soul.", "— Charlemagne"),
+    ("Learning never exhausts the mind.", "— Leonardo da Vinci"),
+    ("One language sets you in a corridor for life. Two languages open every door along the way.", "— Frank Smith"),
+    ("The beautiful thing about learning is nobody can take it away from you.", "— B.B. King"),
+    ("Practice like you've never won. Perform like you've never lost.", "— Anonymous"),
+    ("Small daily improvements are the key to staggering long-term results.", "— Anonymous"),
+    ("Every word you learn today is a door you can open tomorrow.", "— Anonymous"),
+    ("Consistency is what transforms average into excellence.", "— Anonymous"),
+]
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 8MB，足夠一張單字照片
@@ -22,8 +36,14 @@ def dashboard_page():
     conn = db.get_connection()
     stats = db.get_stats(conn)
     tags = db.list_tags(conn)
+    streak = db.get_streak(conn)
+    today = db.get_today_progress(conn)
     conn.close()
-    return render_template("dashboard.html", stats=stats, tags=tags)
+    quote, author = QUOTES[date.today().timetuple().tm_yday % len(QUOTES)]
+    return render_template(
+        "dashboard.html", stats=stats, tags=tags, streak=streak, today=today,
+        quote=quote, quote_author=author,
+    )
 
 
 @app.route("/words")

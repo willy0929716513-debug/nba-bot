@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{% block title %}背單字{% endblock %}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 <script>
@@ -17,24 +17,42 @@
 <header class="topbar">
   <a class="brand" href="{{ url_for('dashboard_page') }}">📚 背單字</a>
   <nav>
-    <a href="{{ url_for('dashboard_page') }}">總覽</a>
-    <a href="{{ url_for('words_page') }}">單字庫</a>
-    <a href="{{ url_for('flashcards_page') }}">單字卡</a>
-    <a href="{{ url_for('quiz_setup_page') }}">測驗</a>
-    <a href="{{ url_for('match_page') }}">配對遊戲</a>
-    <button class="theme-toggle" id="theme-toggle" title="切換深色/淺色模式">🌙</button>
+    <button class="theme-toggle" id="theme-toggle" title="切換深色/淺色模式" aria-label="切換深色/淺色模式">🌙</button>
   </nav>
 </header>
 <main class="container">
   {% block content %}{% endblock %}
 </main>
+
+<nav class="tab-bar" aria-label="主要導覽">
+  <a class="tab-item" href="{{ url_for('dashboard_page') }}" {% if request.endpoint == 'dashboard_page' %}aria-current="page"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5a1 1 0 0 0 1 1H10v-6.5h4V20.5h3.5a1 1 0 0 0 1-1V10"/></svg>
+    <span>總覽</span>
+  </a>
+  <a class="tab-item" href="{{ url_for('words_page') }}" {% if request.endpoint == 'words_page' %}aria-current="page"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5a2 2 0 0 1 2-2h5v17H6a2 2 0 0 1-2-2v-13z"/><path d="M20 5.5a2 2 0 0 0-2-2h-5v17h5a2 2 0 0 0 2-2v-13z"/></svg>
+    <span>單字庫</span>
+  </a>
+  <a class="tab-item" href="{{ url_for('flashcards_page') }}" {% if request.endpoint == 'flashcards_page' %}aria-current="page"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8.5 4.5L12 12 3.5 7.5 12 3z"/><path d="M3.5 12 12 16.5 20.5 12"/><path d="M3.5 16.5 12 21l8.5-4.5"/></svg>
+    <span>單字卡</span>
+  </a>
+  <a class="tab-item" href="{{ url_for('quiz_setup_page') }}" {% if request.endpoint in ('quiz_setup_page', 'quiz_play_page') %}aria-current="page"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>
+    <span>測驗</span>
+  </a>
+  <a class="tab-item" href="{{ url_for('match_page') }}" {% if request.endpoint == 'match_page' %}aria-current="page"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.8"/><rect x="13" y="4" width="7" height="7" rx="1.8"/><rect x="4" y="13" width="7" height="7" rx="1.8"/><rect x="13" y="13" width="7" height="7" rx="1.8"/></svg>
+    <span>配對</span>
+  </a>
+</nav>
+
 <script>
   (function () {
     var btn = document.getElementById("theme-toggle");
     function currentTheme() {
-      var attr = document.documentElement.getAttribute("data-theme");
-      if (attr) return attr;
-      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      // Dark Mode First：沒有明確切換過的話一律視為深色，不看系統設定。
+      return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
     }
     function updateIcon() {
       btn.textContent = currentTheme() === "dark" ? "☀️" : "🌙";
@@ -46,6 +64,23 @@
       updateIcon();
     });
     updateIcon();
+
+    // 按鈕按壓漣漪效果
+    document.addEventListener("click", function (e) {
+      var el = e.target.closest(".btn, .tab-item, .quiz-option, .tag-chip");
+      if (!el) return;
+      var rect = el.getBoundingClientRect();
+      var dot = document.createElement("span");
+      var size = Math.max(rect.width, rect.height);
+      dot.className = "ripple-dot";
+      dot.style.width = dot.style.height = size + "px";
+      dot.style.left = (e.clientX - rect.left - size / 2) + "px";
+      dot.style.top = (e.clientY - rect.top - size / 2) + "px";
+      if (getComputedStyle(el).position === "static") el.style.position = "relative";
+      el.style.overflow = "hidden";
+      el.appendChild(dot);
+      setTimeout(function () { dot.remove(); }, 500);
+    });
   })();
 </script>
 </body>

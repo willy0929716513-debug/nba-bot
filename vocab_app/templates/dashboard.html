@@ -2,31 +2,68 @@
 {% block title %}總覽 - 背單字{% endblock %}
 {% block content %}
 
-<section class="stat-grid">
-  <div class="stat-tile">
-    <div class="stat-value">{{ stats.total }}</div>
-    <div class="stat-label">總單字數</div>
+{% set R = 46 %}
+{% set C = 2 * 3.14159265 * R %}
+{% set offset = C * (1 - today.pct / 100) %}
+<section class="card hero-card">
+  <div class="ring-wrap">
+    <svg width="108" height="108" viewBox="0 0 108 108">
+      <circle class="ring-track" cx="54" cy="54" r="{{ R }}"></circle>
+      <circle class="ring-fill" cx="54" cy="54" r="{{ R }}"
+        style="stroke-dasharray:{{ C }};stroke-dashoffset:{{ offset }}"></circle>
+    </svg>
+    <div class="ring-center">
+      <div class="num">{{ today.count }}/{{ today.goal }}</div>
+      <div class="label">今日進度</div>
+    </div>
   </div>
-  <div class="stat-tile">
-    <div class="stat-value">{{ stats.mastered }}</div>
-    <div class="stat-label">已精熟</div>
-  </div>
-  <div class="stat-tile accent">
-    <div class="stat-value">{{ stats.due }}</div>
-    <div class="stat-label">今天待複習</div>
-  </div>
-  <div class="stat-tile">
-    <div class="stat-value">{{ stats.accuracy is not none and (stats.accuracy ~ '%') or '—' }}</div>
-    <div class="stat-label">測驗正確率</div>
+  <div class="hero-meta">
+    <h2>{% if streak > 0 %}繼續保持！{% else %}開始今天的學習{% endif %}</h2>
+    <p>Lv.{{ stats.level }} · {{ stats.xp }} XP</p>
+    <div class="hero-badges">
+      <span class="pill streak">🔥 連續 {{ streak }} 天</span>
+      <span class="pill xp">⭐ Lv.{{ stats.level }}</span>
+    </div>
   </div>
 </section>
 
+<section class="card quote-card">
+  <div class="quote-text">"{{ quote }}"</div>
+  <div class="quote-sub">{{ quote_author }} · 每日一句</div>
+</section>
+
+<section class="stat-grid">
+  <div class="stat-tile"><div class="stat-value">{{ stats.total }}</div><div class="stat-label">總單字數</div></div>
+  <div class="stat-tile"><div class="stat-value">{{ stats.mastered }}</div><div class="stat-label">已精熟</div></div>
+  <div class="stat-tile accent"><div class="stat-value">{{ stats.due }}</div><div class="stat-label">今天待複習</div></div>
+  <div class="stat-tile"><div class="stat-value">{{ stats.accuracy is not none and (stats.accuracy ~ '%') or '—' }}</div><div class="stat-label">測驗正確率</div></div>
+</section>
+
 <section class="card action-row">
-  <a class="btn primary big" href="{{ url_for('flashcards_page') }}">🔁 開始複習（優先到期單字）</a>
+  <a class="btn primary big" href="{{ url_for('flashcards_page') }}">🔁 開始複習</a>
   <a class="btn big" href="{{ url_for('quiz_setup_page') }}">📝 開始測驗</a>
   <a class="btn big" href="{{ url_for('match_page') }}">🧩 配對遊戲</a>
   <a class="btn big" href="{{ url_for('words_page') }}">➕ 新增單字</a>
 </section>
+
+{% if stats.total > 0 %}
+{% set achievements = [
+  ('🌱', '初學者', stats.total >= 1),
+  ('📚', '單字達人', stats.total >= 50),
+  ('🔥', '連續7天', streak >= 7),
+  ('🏆', '精熟10個', stats.mastered >= 10),
+  ('💯', '正確率90%', stats.accuracy is not none and stats.accuracy >= 90),
+  ('⭐', '收藏家', stats.starred >= 5),
+] %}
+<section class="card">
+  <h2>成就</h2>
+  <div class="badge-grid">
+    {% for emoji, name, unlocked in achievements %}
+    <div class="badge {{ 'unlocked' if unlocked else '' }}"><span class="emoji">{{ emoji }}</span><span class="name">{{ name }}</span></div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 
 {% if stats.total > 0 %}
 <section class="card">
@@ -62,7 +99,9 @@
 
 {% if stats.total == 0 %}
 <section class="card empty-state">
-  <p>還沒有任何單字，先去<a href="{{ url_for('words_page') }}">新增單字</a>開始建立你的單字庫吧！</p>
+  <span class="emoji">📚</span>
+  <p>今天還沒有開始學習</p>
+  <a class="btn primary" href="{{ url_for('words_page') }}">開始建立你的單字庫吧！</a>
 </section>
 {% endif %}
 
